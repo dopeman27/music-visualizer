@@ -76,6 +76,13 @@ def weighted_average_of_freqs(list, sample_rate, window_size):
 def did_variable_change(old_value, new_value):
     return old_value != new_value
 
+def change_height(current_height, target_height, speed, fraction=0.1):
+    if current_height != target_height:
+        diff = target_height - current_height
+        current_height += diff * fraction * speed
+    return current_height
+    
+
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
 
 num_samples = len(stft_result)
@@ -109,6 +116,8 @@ print(len(pitches) == len(stft_result))
 
 current_sample_index = 0
 
+rect_height = 10
+
 # ----------------------- MAIN LOOP ----------------------------------
 
 running = True
@@ -133,7 +142,8 @@ while running and not quit:
     screen.fill((0, 0, 0))
 
     if current_sample_index <= len(pitches):
-        rect_height = 10 + int(pitches[current_sample_index])
+        target_height = 10 + int(pitches[current_sample_index])
+        rect_height = 10 + change_height(rect_height, target_height, 1)
 
     rect_width = 50
 
