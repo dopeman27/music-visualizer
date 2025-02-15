@@ -7,6 +7,9 @@ import os
 pygame.init()
 pygame.mixer.init()
 
+pygame.font.init()
+font = pygame.font.SysFont('Times New Roman', 25)
+
 screen_width = 800
 screen_height = 600
 
@@ -29,12 +32,16 @@ folder_path = 'audio_files/'
 audio_files = load_audio_files_from_folder(folder_path)
 
 
+
 # ----------- Wybór pliku audio ------------
 
 choice = 1
 
 audio_file = folder_path + audio_files[choice]
 audio = AudioSegment.from_mp3(audio_file)
+
+
+
 
 pygame.mixer.music.load(audio_file)
 pygame.mixer.music.play()
@@ -131,6 +138,8 @@ print(len(pitches) == len(stft_result))
 current_sample_index = 0
 
 rect_height = 10
+text_animation_counter = 0
+was_enter_pressed = False
 
 # ----------------------- MAIN LOOP ----------------------------------
 
@@ -139,6 +148,9 @@ while running and not quit:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                was_enter_pressed = True
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
@@ -163,6 +175,19 @@ while running and not quit:
 
     rect = pygame.Rect(screen_width / 2 - rect_width / 2, screen_height - rect_height, rect_width, rect_height)
     pygame.draw.rect(screen, (255, 0, 0), rect)
+
+
+    if was_enter_pressed:
+        text_animation_counter += 1
+
+    def animation_function(x, multiplier=0.05):
+        return x ** 2 * multiplier
+
+    text_x = 10 + animation_function(text_animation_counter)
+
+    text_surface = font.render(f'Now playing: {audio_files[choice]}', True, (255, 255, 255))
+    screen.blit(text_surface, (text_x, 10))
+    
 
 
     # ----------------------------
