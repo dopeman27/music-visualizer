@@ -2,6 +2,7 @@ from pydub import AudioSegment
 import numpy as np
 import scipy.fftpack
 import pygame
+import os
 
 pygame.init()
 pygame.mixer.init()
@@ -15,11 +16,24 @@ pygame.display.set_caption("Music Visualizer")
 
 # -------- Załadowanie pliku audio
 
-#audio_file = 'audio_files/18.mp3'
-#audio_file = 'audio_files/test_audio.mp3'
-#audio_file = 'audio_files/test_audio2.mp3'
-#audio_file = 'audio_files/test_audio3.mp3'
-audio_file = 'audio_files/bit226.mp3'
+def load_audio_files_from_folder(folder_path):
+    files_and_folders = os.listdir(folder_path)
+    audio_files = []
+    for item in files_and_folders:
+        if item.endswith('.mp3'):
+            audio_files.append(item)
+    return audio_files
+
+folder_path = 'audio_files/'
+
+audio_files = load_audio_files_from_folder(folder_path)
+
+
+# ----------- Wybór pliku audio ------------
+
+choice = 1
+
+audio_file = folder_path + audio_files[choice]
 audio = AudioSegment.from_mp3(audio_file)
 
 pygame.mixer.music.load(audio_file)
