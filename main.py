@@ -10,8 +10,8 @@ pygame.mixer.init()
 pygame.font.init()
 font = pygame.font.SysFont('Times New Roman', 25)
 
-screen_width = 800
-screen_height = 600
+screen_width = 1280
+screen_height = 720
 
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Music Visualizer")
@@ -47,6 +47,55 @@ pygame.mixer.music.load(audio_file)
 pygame.mixer.music.play()
 
 samples = np.array(audio.get_array_of_samples())
+
+
+# --------------- KLASY ----------------
+
+class SoundBar:
+    def __init__(self, x, y, width, base_height):
+        self.x = x
+        self.y = y
+        self.width = width
+        
+        self.base_height = base_height
+        
+        self.height = base_height
+        self.target_height = base_height
+
+        self.value = 100    # procent wypelnienia
+
+        self.speed = 1
+
+        self.color = (100, 200, 60)
+
+    def get_target_height(self):
+        return np.clip(self.base_height + int(pitches[current_sample_index]), 0, screen_height)
+
+    def change_height(self, multiplier=0.1):
+        if self.height != self.target_height:
+            diff = self.target_height - self.height
+            self.height += diff * multiplier * self.speed
+        return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
+
+    def update(self):
+        self.target_height = self.get_target_height()
+        self.change_height()
+
+    def draw(self):
+        rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        pygame.draw.rect(screen, self.color, rect)
+
+
+base_height = 10
+
+bars = []    
+
+for i in range(10):
+    bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
+    color_val = int(255 * (i / 10))
+    color_val = np.clip(color_val, 0, 255)
+    bars[i].color = (color_val, color_val, color_val)
+
 
 # ------- Ustawienia samplowania
 window_size = 1024
@@ -169,6 +218,14 @@ while running and not quit:
 
     screen.fill((0, 0, 0))
 
+    for bar in bars:
+        bar.update()
+        bar.draw()
+
+    #bar1.update()
+    #bar1.draw()
+
+    
     target_height = np.clip(10 + int(pitches[current_sample_index]), 0, screen_height)
     rect_height = 10 + change_height(rect_height, target_height, 2)
 
