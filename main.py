@@ -17,7 +17,9 @@ pygame.display.set_caption("Music Visualizer")
 
 #audio_file = 'audio_files/18.mp3'
 #audio_file = 'audio_files/test_audio.mp3'
-audio_file = 'audio_files/test_audio2.mp3'
+#audio_file = 'audio_files/test_audio2.mp3'
+#audio_file = 'audio_files/test_audio3.mp3'
+audio_file = 'audio_files/bit226.mp3'
 audio = AudioSegment.from_mp3(audio_file)
 
 pygame.mixer.music.load(audio_file)
@@ -103,6 +105,10 @@ audio_duration2 = len(pitches) * sampling_frequency
 
 old_sample_index = 0
 
+print(len(pitches) == len(stft_result))
+
+current_sample_index = 0
+
 # ----------------------- MAIN LOOP ----------------------------------
 
 running = True
@@ -111,14 +117,11 @@ while running and not quit:
         if event.type == pygame.QUIT:
             running = False
 
-    elapsed_time_ms = pygame.time.get_ticks()
-    #elapsed_time_sec = elapsed_time_ms / 1000 
+    elapsed_time_ms = pygame.mixer.music.get_pos()
 
-    seconds_clock = elapsed_time_ms
-    if seconds_clock > 1000:
-        seconds_clock = 0
+    if current_sample_index < len(pitches):
+        current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
 
-    current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
     if did_variable_change(old_sample_index, current_sample_index):
         print(f'current_sample_index: {current_sample_index}')
         old_sample_index = current_sample_index
@@ -129,7 +132,9 @@ while running and not quit:
 
     screen.fill((0, 0, 0))
 
-    rect_height = 10 + int(pitches[current_sample_index])
+    if current_sample_index <= len(pitches):
+        rect_height = 10 + int(pitches[current_sample_index])
+
     rect_width = 50
 
     rect = pygame.Rect(screen_width / 2 - rect_width / 2, screen_height - rect_height, rect_width, rect_height)
