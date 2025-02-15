@@ -35,7 +35,7 @@ audio_files = load_audio_files_from_folder(folder_path)
 
 # ----------- Wybór pliku audio ------------
 
-choice = 1
+choice = 2
 
 audio_file = folder_path + audio_files[choice]
 audio = AudioSegment.from_mp3(audio_file)
@@ -101,7 +101,7 @@ def change_height(current_height, target_height, speed, fraction=0.1):
     if current_height != target_height:
         diff = target_height - current_height
         current_height += diff * fraction * speed
-    return current_height
+    return np.clip(np.abs(current_height), 1, 1000) * np.sign(current_height)
     
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -113,7 +113,7 @@ audio_duration = len(audio)
 time_per_sample = audio_duration / num_samples
 
 def get_current_sample_index(current_time, time_per_sample):
-    return int(current_time / time_per_sample)
+    return np.clip(int(current_time / time_per_sample), 0, len(pitches) - 1)
 
 quit = False
 
@@ -154,11 +154,13 @@ while running and not quit:
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
+    current_sample_index = np.clip(current_sample_index, 0, len(pitches))
+
     if current_sample_index < len(pitches):
         current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
 
     if did_variable_change(old_sample_index, current_sample_index):
-        print(f'current_sample_index: {current_sample_index}')
+        #print(f'current_sample_index: {current_sample_index}')
         old_sample_index = current_sample_index
 
 
@@ -167,9 +169,8 @@ while running and not quit:
 
     screen.fill((0, 0, 0))
 
-    if current_sample_index <= len(pitches):
-        target_height = 10 + int(pitches[current_sample_index])
-        rect_height = 10 + change_height(rect_height, target_height, 1)
+    target_height = np.clip(10 + int(pitches[current_sample_index]), 0, screen_height)
+    rect_height = 10 + change_height(rect_height, target_height, 2)
 
     rect_width = 50
 
