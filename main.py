@@ -109,7 +109,7 @@ time_per_sample = audio_duration / num_samples
 def get_current_sample_index(current_time, time_per_sample):
     return np.clip(int(current_time / time_per_sample), 0, len(pitches) - 1)
 
-def calculate_frequency_borders(n, base=2, min_freq=50, max_freq=20000):
+def calculate_frequency_ranges(n, base=2, min_freq=20, max_freq=20000):
     # n - liczba interwałów, granic n + 1
     # matematyka : kazdy kolejny interwal jest 2x dluzszy od poprzedniego
     # zatem liczba najkrotszego odcinka bedzie sie zwiekszala wykladniczo wraz ze wzrostem n
@@ -129,7 +129,7 @@ def calculate_frequency_borders(n, base=2, min_freq=50, max_freq=20000):
     return result
 
 
-print(calculate_frequency_borders(10))
+print(calculate_frequency_ranges(10))
 
 
 # --------------- KLASY ----------------
@@ -145,7 +145,8 @@ class SoundBar:
         self.height = base_height
         self.target_height = base_height
 
-        self.value = 100    # procent wypelnienia
+        self.value = 100                    # procent wypelnienia
+        self.frequency_range = (20, 20000)  # odbierane czestotliwosci
 
         self.speed = 1
 
@@ -170,17 +171,37 @@ class SoundBar:
         pygame.draw.rect(screen, self.color, rect)
 
 
+def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50, base_height=10, space=10):
+    bars = []
+    freq_ranges = calculate_frequency_ranges(n)
+
+    for i in range(len(freq_ranges) - 1):
+        bar = SoundBar(start_x + i * (space + width), 300, width, base_height)
+        bar.frequency_range = (freq_ranges[i], freq_ranges[i + 1])
+
+        bars.append(bar)
+
+    return bars
+
+
 base_height = 10
 
-bars = []    
 
-for i in range(10):
-    bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
-    color_val = int(255 * (i / 10))
-    color_val = np.clip(color_val, 0, 255)
+bars = create_ranged_audio_bars(10)
 
-    color_val2 = np.clip(color_val + 50, 0, 255)
-    bars[i].color = (color_val, color_val, color_val2)
+
+
+
+
+# bars = []    
+
+# for i in range(10):
+#     bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
+#     color_val = int(255 * (i / 10))
+#     color_val = np.clip(color_val, 0, 255)
+
+#     color_val2 = np.clip(color_val + 50, 0, 255)
+#     bars[i].color = (color_val, color_val, color_val2)
 
 
 
