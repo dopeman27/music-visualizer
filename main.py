@@ -10,8 +10,8 @@ pygame.mixer.init()
 pygame.font.init()
 font = pygame.font.SysFont('Times New Roman', 25)
 
-screen_width = 1280
-screen_height = 720
+screen_width = 16 * 70
+screen_height = 9 * 70
 
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Music Visualizer")
@@ -40,66 +40,18 @@ choice = 2
 audio_file = folder_path + audio_files[choice]
 audio = AudioSegment.from_mp3(audio_file)
 
-
-
-
 pygame.mixer.music.load(audio_file)
 pygame.mixer.music.play()
 
 samples = np.array(audio.get_array_of_samples())
 
 
-# --------------- KLASY ----------------
-
-class SoundBar:
-    def __init__(self, x, y, width, base_height):
-        self.x = x
-        self.y = y
-        self.width = width
-        
-        self.base_height = base_height
-        
-        self.height = base_height
-        self.target_height = base_height
-
-        self.value = 100    # procent wypelnienia
-
-        self.speed = 1
-
-        self.color = (100, 200, 60)
-
-    def get_target_height(self):
-        return np.clip(self.base_height + int(pitches[current_sample_index]), 0, screen_height)
-
-    def change_height(self, multiplier=0.1):
-        if self.height != self.target_height:
-            diff = self.target_height - self.height
-            self.height += diff * multiplier * self.speed
-        return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
-
-    def update(self):
-        self.target_height = self.get_target_height()
-        self.change_height()
-
-    def draw(self):
-        rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        pygame.draw.rect(screen, self.color, rect)
-
-
-base_height = 10
-
-bars = []    
-
-for i in range(10):
-    bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
-    color_val = int(255 * (i / 10))
-    color_val = np.clip(color_val, 0, 255)
-    bars[i].color = (color_val, color_val, color_val)
-
-
 # ------- Ustawienia samplowania
 window_size = 1024
 hop_size = 512
+
+# ------------- Przydatne funkcje ---------------
+
 
 # STFT (Short-Time Fourier Transform)
 def stft(samples, window_size, hop_size, sample_rate):
@@ -146,13 +98,6 @@ def weighted_average_of_freqs(list, sample_rate, window_size):
 def did_variable_change(old_value, new_value):
     return old_value != new_value
 
-def change_height(current_height, target_height, speed, fraction=0.1):
-    if current_height != target_height:
-        diff = target_height - current_height
-        current_height += diff * fraction * speed
-    return np.clip(np.abs(current_height), 1, 1000) * np.sign(current_height)
-    
-
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
 
 num_samples = len(stft_result)
@@ -163,6 +108,91 @@ time_per_sample = audio_duration / num_samples
 
 def get_current_sample_index(current_time, time_per_sample):
     return np.clip(int(current_time / time_per_sample), 0, len(pitches) - 1)
+
+def calculate_frequency_borders(n, base=2, min_freq=50, max_freq=20000):
+    # n - liczba interwałów, granic n + 1
+    # matematyka : kazdy kolejny interwal jest 2x dluzszy od poprzedniego
+    # zatem liczba najkrotszego odcinka bedzie sie zwiekszala wykladniczo wraz ze wzrostem n
+    # wzor: int + 2int + 4int + 8int + ...
+    # zatem bedzie to: 2^n - 1 interwalow
+
+    result = []
+
+    num_intervals = base**n - 1
+    freq_length = max_freq - min_freq
+    interval = freq_length / num_intervals      # dlugosc najkrotszego interwalu
+
+    result.append(min_freq)
+    for power in range(n):
+        result.append(int(result[power] + interval * base**power))
+
+    return result
+
+
+print(calculate_frequency_borders(10))
+
+
+# --------------- KLASY ----------------
+
+class SoundBar:
+    def __init__(self, x, y, width, base_height):
+        self.x = x
+        self.y = y
+        self.width = width
+        
+        self.base_height = base_height
+        
+        self.height = base_height
+        self.target_height = base_height
+
+        self.value = 100    # procent wypelnienia
+
+        self.speed = 1
+
+        self.color = (100, 200, 60)
+
+    def get_target_height(self):
+        #pitches = values_list
+        return np.clip(self.base_height + int(pitches[current_sample_index]), 0, screen_height)
+
+    def change_height(self, multiplier=0.1):
+        if self.height != self.target_height:
+            diff = self.target_height - self.height
+            self.height += diff * multiplier * self.speed
+        return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
+
+    def update(self):
+        self.target_height = self.get_target_height()
+        self.change_height()
+
+    def draw(self):
+        rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        pygame.draw.rect(screen, self.color, rect)
+
+
+base_height = 10
+
+bars = []    
+
+for i in range(10):
+    bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
+    color_val = int(255 * (i / 10))
+    color_val = np.clip(color_val, 0, 255)
+
+    color_val2 = np.clip(color_val + 50, 0, 255)
+    bars[i].color = (color_val, color_val, color_val2)
+
+
+
+
+def change_height(current_height, target_height, speed, fraction=0.1):
+    if current_height != target_height:
+        diff = target_height - current_height
+        current_height += diff * fraction * speed
+    return np.clip(np.abs(current_height), 1, 1000) * np.sign(current_height)
+    
+
+
 
 quit = False
 
@@ -213,6 +243,7 @@ while running and not quit:
         old_sample_index = current_sample_index
 
 
+    import random
 
     # --------- Rysowanie ---------
 
@@ -221,6 +252,11 @@ while running and not quit:
     for bar in bars:
         bar.update()
         bar.draw()
+
+    print(bars[0].target_height)
+
+    #bars[0].x += random.randint(0, 1)
+
 
     #bar1.update()
     #bar1.draw()
