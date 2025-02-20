@@ -41,7 +41,7 @@ audio_files = load_audio_files_from_folder(folder_path)
 
 # ----------- Wybór pliku audio ------------
 
-choice = 2
+choice = 1
 
 audio_file = folder_path + audio_files[choice]
 audio = AudioSegment.from_mp3(audio_file)
@@ -65,7 +65,7 @@ def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 10
+NUM_BARS = 20
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -101,7 +101,7 @@ class SoundBar:
         self.value = 100                    # procent wypelnienia
         self.frequency_range = (20, 20000)  # odbierane czestotliwosci
 
-        self.speed = 1
+        self.speed = 1.5
 
         self.color = (100, 200, 60)
 
@@ -110,7 +110,7 @@ class SoundBar:
     
     def get_target_height(self):
         #pitches = values_list
-        return np.clip(self.base_height + int(self.current_amp) * 0.1, 0, screen_height)
+        return np.clip(self.base_height + int(self.current_amp) * 0.1, 0, screen_height - 20)
 
     def change_height(self, multiplier=0.1):
         if self.height != self.target_height:
@@ -132,12 +132,12 @@ import random
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50, base_height=10, space=10):
+def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=40, base_height=10, space=10):
     bars = []
     freq_ranges = calculate_frequency_ranges(n)
 
     for i in range(len(freq_ranges) - 1):
-        bar = SoundBar(start_x + i * (space + width), 300, width, base_height)
+        bar = SoundBar(start_x + i * (space + width), lower_edge_y - base_height, width, base_height)
         bar.frequency_range = (freq_ranges[i], freq_ranges[i + 1])
         bar.color = get_random_color()
 
@@ -187,7 +187,7 @@ audio_duration = len(audio)
 time_per_sample = audio_duration / num_samples
 
 def get_current_sample_index(current_time, time_per_sample):
-    return np.clip(int(current_time / time_per_sample), 0, 1000 - 1)
+    return np.clip(int(current_time / time_per_sample), 0, len(all_amplitudes) - 1)
 
 
 
@@ -204,10 +204,7 @@ while running:
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
-    current_sample_index = np.clip(current_sample_index, 0, 1000)
-
-    if current_sample_index < 1000:
-        current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
+    current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
 
     if did_variable_change(old_sample_index, current_sample_index):
         #print(f'current_sample_index: {current_sample_index}')
@@ -225,8 +222,8 @@ while running:
     screen.fill((0, 0, 0))
 
     #amp_sum_single_list = big_sum[current_sample_index]
-    for i in range(10):
-        #bars[i].current_amp = amp_sum_single_list[i]
+    for i in range(NUM_BARS):
+        bars[i].current_amp = all_amplitudes[current_sample_index][i] * 0.001
 
         bars[i].update()
         bars[i].draw()
