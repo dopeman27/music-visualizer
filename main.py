@@ -3,6 +3,7 @@ import numpy as np
 import scipy.fftpack
 import pygame
 import os
+import sys
 
 pygame.init()
 pygame.mixer.init()
@@ -18,6 +19,10 @@ pygame.display.set_caption("Music Visualizer")
 
 
 # -------- Załadowanie pliku audio
+
+def get_number_of_files_from_folder(folder_path):
+    return len(os.listdir(folder_path))
+
 
 def load_audio_files_from_folder(folder_path):
     files_and_folders = os.listdir(folder_path)
@@ -79,6 +84,24 @@ def get_pitch(audio, stft_result, sample_rate, sampling_frequency=50):
         i += 1
     return pitches
 
+
+def decrypt_audio_to_file(folder_path='saves_decrypted/', content=''):
+    num_documents = get_number_of_files_from_folder(folder_path)
+    full_name = str(audio_files[choice])[:-4] + '_decrypted' + str(num_documents + 1)
+    full_path = folder_path + full_name
+    np.set_printoptions(threshold=sys.maxsize)
+    content = str(content)
+    with open(full_path, 'w') as f:
+        if content:
+            f.write(content)
+            print('File successfully saved.')
+        else:
+            print('Empty.')
+
+            
+    
+
+
 # srednia wazona czestotliwosci
 def weighted_average_of_freqs(list, sample_rate, window_size):
     result = []
@@ -95,10 +118,13 @@ def weighted_average_of_freqs(list, sample_rate, window_size):
         i += 1
     return result
 
+
 def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
+
+
 
 num_samples = len(stft_result)
 audio_duration = len(audio)
@@ -126,10 +152,13 @@ def calculate_frequency_ranges(n, base=2, min_freq=20, max_freq=20000):
     for power in range(n):
         result.append(int(result[power] + interval * base**power))
 
+    result[-1] = max_freq           # zapewniamy, ze ostatnia granica pokrywa sie z oryginalna
+
     return result
 
 
-print(calculate_frequency_ranges(10))
+#print(calculate_frequency_ranges(10))
+
 
 
 # --------------- KLASY ----------------
@@ -139,6 +168,7 @@ class SoundBar:
         self.x = x
         self.y = y
         self.width = width
+        self.lower_edge_y = y + base_height
         
         self.base_height = base_height
         
@@ -152,11 +182,23 @@ class SoundBar:
 
         self.color = (100, 200, 60)
 
-    def get_target_height(self):
+        self.current_amp = 0
+
+    def get_target_height2(self):
         #pitches = values_list
         return np.clip(self.base_height + int(pitches[current_sample_index]), 0, screen_height)
+    
+    def get_target_height(self):
+        #pitches = values_list
+        return np.clip(self.base_height + int(self.current_amp) * 0.1, 0, screen_height)
 
     def change_height(self, multiplier=0.1):
+        if self.height != self.target_height:
+            diff = self.target_height - self.height
+            self.height += diff * multiplier * self.speed
+        return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
+    
+    def change_height2(self, multiplier=0.1):
         if self.height != self.target_height:
             diff = self.target_height - self.height
             self.height += diff * multiplier * self.speed
@@ -167,9 +209,13 @@ class SoundBar:
         self.change_height()
 
     def draw(self):
-        rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        rect = pygame.Rect(self.x, self.y - self.height, self.width, self.height)
         pygame.draw.rect(screen, self.color, rect)
 
+import random
+
+def get_random_color():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
 def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50, base_height=10, space=10):
     bars = []
@@ -178,6 +224,7 @@ def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50
     for i in range(len(freq_ranges) - 1):
         bar = SoundBar(start_x + i * (space + width), 300, width, base_height)
         bar.frequency_range = (freq_ranges[i], freq_ranges[i + 1])
+        bar.color = get_random_color()
 
         bars.append(bar)
 
@@ -187,21 +234,9 @@ def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50
 base_height = 10
 
 
-bars = create_ranged_audio_bars(10)
+num_bars = 10
 
-
-
-
-
-# bars = []    
-
-# for i in range(10):
-#     bars.append(SoundBar(20 + i * 30, screen_height - base_height, 50, 10))
-#     color_val = int(255 * (i / 10))
-#     color_val = np.clip(color_val, 0, 255)
-
-#     color_val2 = np.clip(color_val + 50, 0, 255)
-#     bars[i].color = (color_val, color_val, color_val2)
+bars = create_ranged_audio_bars(num_bars)
 
 
 
@@ -212,8 +247,6 @@ def change_height(current_height, target_height, speed, fraction=0.1):
         current_height += diff * fraction * speed
     return np.clip(np.abs(current_height), 1, 1000) * np.sign(current_height)
     
-
-
 
 quit = False
 
@@ -240,6 +273,15 @@ current_sample_index = 0
 rect_height = 10
 text_animation_counter = 0
 was_enter_pressed = False
+
+
+freq_ranges = calculate_frequency_ranges(num_bars)
+
+#print(sum_amplitudes_in_freq_range(stft_result, freq_ranges, audio.frame_rate, window_size))
+#big_sum = sum_amplitudes_in_freq_range(stft_result, freq_ranges, audio.frame_rate, window_size)
+
+decrypt_audio_to_file(content=stft_result)
+
 
 # ----------------------- MAIN LOOP ----------------------------------
 
@@ -270,26 +312,14 @@ while running and not quit:
 
     screen.fill((0, 0, 0))
 
-    for bar in bars:
-        bar.update()
-        bar.draw()
+    #amp_sum_single_list = big_sum[current_sample_index]
+    for i in range(10):
+        #bars[i].current_amp = amp_sum_single_list[i]
 
-    print(bars[0].target_height)
+        bars[i].update()
+        bars[i].draw()
 
-    #bars[0].x += random.randint(0, 1)
-
-
-    #bar1.update()
-    #bar1.draw()
-
-    
-    target_height = np.clip(10 + int(pitches[current_sample_index]), 0, screen_height)
-    rect_height = 10 + change_height(rect_height, target_height, 2)
-
-    rect_width = 50
-
-    rect = pygame.Rect(screen_width / 2 - rect_width / 2, screen_height - rect_height, rect_width, rect_height)
-    pygame.draw.rect(screen, (255, 0, 0), rect)
+        print(bars[1].current_amp)
 
 
     if was_enter_pressed:
