@@ -4,6 +4,7 @@ import scipy.fftpack
 import pygame
 import os
 import sys
+from stft import *
 
 pygame.init()
 pygame.mixer.init()
@@ -58,106 +59,28 @@ hop_size = 512
 # ------------- Przydatne funkcje ---------------
 
 
-# STFT (Short-Time Fourier Transform)
-def stft(samples, window_size, hop_size, sample_rate):
-    stft_result = []
-    for i in range(0, len(samples) - window_size, hop_size):
-        windowed_samples = samples[i:i + window_size] * np.hanning(window_size)
-        fft_result = scipy.fftpack.fft(windowed_samples)
-        stft_result.append(np.abs(fft_result[:window_size // 2]))
-    return np.array(stft_result)
-
-# Obliczanie wysokosci tonu
-def get_pitch(audio, stft_result, sample_rate, sampling_frequency=50):
-    pitches = []
-    audio_length = len(audio)
-    num_secornds = np.floor(audio_length / 1000)
-    samples_per_second = audio.frame_rate   
-    stft_segments_per_second = np.floor(len(stft_result) / num_secornds)
-    i = 0
-    for spectrum in stft_result:
-        #if i % stft_segments_per_second == 0:
-        if i % sampling_frequency == 0:
-            max_index = np.argmax(spectrum)
-            frequency = max_index * sample_rate / window_size
-            pitches.append(frequency)
-        i += 1
-    return pitches
-
-
-def decrypt_audio_to_file(folder_path='saves_decrypted/', content=''):
-    num_documents = get_number_of_files_from_folder(folder_path)
-    full_name = str(audio_files[choice])[:-4] + '_decrypted' + str(num_documents + 1)
-    full_path = folder_path + full_name
-    np.set_printoptions(threshold=sys.maxsize)
-    content = str(content)
-    with open(full_path, 'w') as f:
-        if content:
-            f.write(content)
-            print('File successfully saved.')
-        else:
-            print('Empty.')
-
-            
-    
-
-
-# srednia wazona czestotliwosci
-def weighted_average_of_freqs(list, sample_rate, window_size):
-    result = []
-    i = 0
-    small_list_index = 0
-    for small_list in list: # list to lista 2wymiarowa
-        freq_sum = 0
-        weights_sum = sum(small_list)
-        for amplitude in small_list:
-            frequency = small_list_index * sample_rate / window_size
-            freq_sum += frequency * amplitude
-            small_list_index += 1
-        result.append(freq_sum / weights_sum)
-        i += 1
-    return result
 
 
 def did_variable_change(old_value, new_value):
     return old_value != new_value
 
+
+NUM_BARS = 10
+
+
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
 
+freq_ranges = calculate_frequency_ranges(NUM_BARS)
+
+all_amplitudes = get_all_amplitudes(stft_result, freq_ranges)
+
+print('done')
+
+#quit = True
 
 
-num_samples = len(stft_result)
-audio_duration = len(audio)
-
-# czas na jedna probke
-time_per_sample = audio_duration / num_samples
-
-def get_current_sample_index(current_time, time_per_sample):
-    return np.clip(int(current_time / time_per_sample), 0, len(pitches) - 1)
-
-def calculate_frequency_ranges(n, base=2, min_freq=20, max_freq=20000):
-    # n - liczba interwałów, granic n + 1
-    # matematyka : kazdy kolejny interwal jest 2x dluzszy od poprzedniego
-    # zatem liczba najkrotszego odcinka bedzie sie zwiekszala wykladniczo wraz ze wzrostem n
-    # wzor: int + 2int + 4int + 8int + ...
-    # zatem bedzie to: 2^n - 1 interwalow
-
-    result = []
-
-    num_intervals = base**n - 1
-    freq_length = max_freq - min_freq
-    interval = freq_length / num_intervals      # dlugosc najkrotszego interwalu
-
-    result.append(min_freq)
-    for power in range(n):
-        result.append(int(result[power] + interval * base**power))
-
-    result[-1] = max_freq           # zapewniamy, ze ostatnia granica pokrywa sie z oryginalna
-
-    return result
 
 
-#print(calculate_frequency_ranges(10))
 
 
 
@@ -184,21 +107,12 @@ class SoundBar:
 
         self.current_amp = 0
 
-    def get_target_height2(self):
-        #pitches = values_list
-        return np.clip(self.base_height + int(pitches[current_sample_index]), 0, screen_height)
     
     def get_target_height(self):
         #pitches = values_list
         return np.clip(self.base_height + int(self.current_amp) * 0.1, 0, screen_height)
 
     def change_height(self, multiplier=0.1):
-        if self.height != self.target_height:
-            diff = self.target_height - self.height
-            self.height += diff * multiplier * self.speed
-        return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
-    
-    def change_height2(self, multiplier=0.1):
         if self.height != self.target_height:
             diff = self.target_height - self.height
             self.height += diff * multiplier * self.speed
@@ -211,6 +125,7 @@ class SoundBar:
     def draw(self):
         rect = pygame.Rect(self.x, self.y - self.height, self.width, self.height)
         pygame.draw.rect(screen, self.color, rect)
+
 
 import random
 
@@ -234,21 +149,8 @@ def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=50
 base_height = 10
 
 
-num_bars = 10
 
-bars = create_ranged_audio_bars(num_bars)
-
-
-
-
-def change_height(current_height, target_height, speed, fraction=0.1):
-    if current_height != target_height:
-        diff = target_height - current_height
-        current_height += diff * fraction * speed
-    return np.clip(np.abs(current_height), 1, 1000) * np.sign(current_height)
-    
-
-quit = False
+bars = create_ranged_audio_bars(NUM_BARS)
 
 clock = pygame.time.Clock()
 
@@ -261,12 +163,12 @@ time_per_frame = 1000 / fps
 sample_counter = 0
 sampling_frequency = 1
 
-pitches = get_pitch(audio, stft_result, audio.frame_rate, sampling_frequency)
-audio_duration2 = len(pitches) * sampling_frequency
+#pitches = get_pitch(audio, stft_result, audio.frame_rate, sampling_frequency)
+#audio_duration2 = len(pitches) * sampling_frequency
 
 old_sample_index = 0
 
-print(len(pitches) == len(stft_result))
+#print(len(pitches) == len(stft_result))
 
 current_sample_index = 0
 
@@ -275,18 +177,24 @@ text_animation_counter = 0
 was_enter_pressed = False
 
 
-freq_ranges = calculate_frequency_ranges(num_bars)
+#freq_ranges = calculate_frequency_ranges(num_bars)
 
-#print(sum_amplitudes_in_freq_range(stft_result, freq_ranges, audio.frame_rate, window_size))
-#big_sum = sum_amplitudes_in_freq_range(stft_result, freq_ranges, audio.frame_rate, window_size)
 
-decrypt_audio_to_file(content=stft_result)
+num_samples = len(stft_result)
+audio_duration = len(audio)
+
+# czas na jedna probke
+time_per_sample = audio_duration / num_samples
+
+def get_current_sample_index(current_time, time_per_sample):
+    return np.clip(int(current_time / time_per_sample), 0, 1000 - 1)
+
 
 
 # ----------------------- MAIN LOOP ----------------------------------
 
 running = True
-while running and not quit:
+while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -296,14 +204,18 @@ while running and not quit:
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
-    current_sample_index = np.clip(current_sample_index, 0, len(pitches))
+    current_sample_index = np.clip(current_sample_index, 0, 1000)
 
-    if current_sample_index < len(pitches):
+    if current_sample_index < 1000:
         current_sample_index = get_current_sample_index(elapsed_time_ms, time_per_sample)
 
     if did_variable_change(old_sample_index, current_sample_index):
         #print(f'current_sample_index: {current_sample_index}')
         old_sample_index = current_sample_index
+
+
+    #print(current_sample_index)
+    print(sum(all_amplitudes[current_sample_index]))
 
 
     import random
@@ -319,7 +231,8 @@ while running and not quit:
         bars[i].update()
         bars[i].draw()
 
-        print(bars[1].current_amp)
+        #print(bars[1].current_amp)
+
 
 
     if was_enter_pressed:

@@ -4,6 +4,10 @@ import scipy.fftpack
 import os
 import sys
 
+WINDOW_SIZE = 1024
+HOP_SIZE = 512
+
+
 
 
 def calculate_frequency_ranges(n, base=2, min_freq=20, max_freq=20000):
@@ -103,5 +107,41 @@ def get_all_amplitudes(stft_result, freq_ranges):
 
 freq_ranges = calculate_frequency_ranges(10)
 
-print(freq_ranges)
-print(sum_amplitudes_in_frequency_ranges(stft_result[2], freq_ranges))
+#print(freq_ranges)
+#print(sum_amplitudes_in_frequency_ranges(stft_result[2], freq_ranges))
+
+
+
+
+# Obliczanie wysokosci tonu
+def get_pitch(audio, stft_result, sample_rate, sampling_frequency=50):
+    pitches = []
+    audio_length = len(audio)
+    num_secornds = np.floor(audio_length / 1000)
+    samples_per_second = audio.frame_rate   
+    stft_segments_per_second = np.floor(len(stft_result) / num_secornds)
+    i = 0
+    for spectrum in stft_result:
+        #if i % stft_segments_per_second == 0:
+        if i % sampling_frequency == 0:
+            max_index = np.argmax(spectrum)
+            frequency = max_index * sample_rate / WINDOW_SIZE
+            pitches.append(frequency)
+        i += 1
+    return pitches
+
+# srednia wazona czestotliwosci
+def weighted_average_of_freqs(list, sample_rate, window_size):
+    result = []
+    i = 0
+    small_list_index = 0
+    for small_list in list: # list to lista 2wymiarowa
+        freq_sum = 0
+        weights_sum = sum(small_list)
+        for amplitude in small_list:
+            frequency = small_list_index * sample_rate / window_size
+            freq_sum += frequency * amplitude
+            small_list_index += 1
+        result.append(freq_sum / weights_sum)
+        i += 1
+    return result
