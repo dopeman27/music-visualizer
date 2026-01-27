@@ -10,7 +10,7 @@ HOP_SIZE = 512
 
 
 
-def calculate_frequency_ranges(n, base=2, min_freq=20, max_freq=20000):
+def calculate_frequency_ranges(n, base=2, min_freq=10, max_freq=20000):
     result = []
 
     num_intervals = base**n - 1
@@ -105,7 +105,7 @@ def sum_amplitudes_in_frequency_ranges(spectrum, freq_ranges):
 def get_all_amplitudes(stft_result, freq_ranges):
     return [sum_amplitudes_in_frequency_ranges(spectrum, freq_ranges) for spectrum in stft_result]
 
-freq_ranges = calculate_frequency_ranges(10)
+# freq_ranges = calculate_frequency_ranges(10)
 
 #print(freq_ranges)
 #print(sum_amplitudes_in_frequency_ranges(stft_result[2], freq_ranges))

@@ -41,9 +41,21 @@ audio_files = load_audio_files_from_folder(folder_path)
 
 # ----------- Wybór pliku audio ------------
 
-choice = 1
+choice = 0
 
-audio_file = folder_path + audio_files[choice]
+# audio_file = folder_path + audio_files[choice]
+# audio = AudioSegment.from_mp3(audio_file)
+
+
+import tkinter as tk
+from tkinter.filedialog import askopenfilename
+tk.Tk().withdraw() # part of the import if you are not using other tkinter functions
+
+fn = askopenfilename()
+print("user chose", fn)
+
+
+audio_file = fn
 audio = AudioSegment.from_mp3(audio_file)
 
 pygame.mixer.music.load(audio_file)
@@ -61,16 +73,21 @@ hop_size = 512
 
 
 
+
+
+
 def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 20
+NUM_BARS = 25
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
 
 freq_ranges = calculate_frequency_ranges(NUM_BARS)
+
+print(freq_ranges)
 
 all_amplitudes = get_all_amplitudes(stft_result, freq_ranges)
 
@@ -101,7 +118,7 @@ class SoundBar:
         self.value = 100                    # procent wypelnienia
         self.frequency_range = (20, 20000)  # odbierane czestotliwosci
 
-        self.speed = 1.5
+        self.speed = 2.5
 
         self.color = (100, 200, 60)
 
@@ -132,12 +149,16 @@ import random
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def create_ranged_audio_bars(n, start_x=10, lower_edge_y=screen_height, width=40, base_height=10, space=10):
+def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40, base_height=10, space=int(250 / NUM_BARS)):
     bars = []
     freq_ranges = calculate_frequency_ranges(n)
 
     for i in range(len(freq_ranges) - 1):
+        width = screen_width / n - space
+
         bar = SoundBar(start_x + i * (space + width), lower_edge_y - base_height, width, base_height)
+
+        #bar.width = screen_width / n - space
         bar.frequency_range = (freq_ranges[i], freq_ranges[i + 1])
         bar.color = get_random_color()
 
@@ -212,7 +233,7 @@ while running:
 
 
     #print(current_sample_index)
-    print(sum(all_amplitudes[current_sample_index]))
+    # print(sum(all_amplitudes[current_sample_index]))
 
 
     import random
@@ -235,7 +256,7 @@ while running:
     if was_enter_pressed:
         text_animation_counter += 1
 
-    def animation_function(x, multiplier=0.05):
+    def animation_function(x, multiplier=0.02):
         return x ** 2 * multiplier
 
     text_x = 10 + animation_function(text_animation_counter)
