@@ -130,12 +130,93 @@ print('done')
 BAR_SIZE_MULTIPLIER = 1.2
 
 
-
+subtractor = 20
 
 # --------------- KLASY ----------------
 
+class FastSetting:
+    fast_settings = []
+
+    def update_all(event):
+        for setting in FastSetting.fast_settings:
+            setting.handle_input(event)
+
+    def print_info():
+        for setting in FastSetting.fast_settings:
+            print(f'{setting.name}: {setting.value}')
+
+    def __init__(self, name, initial_value, key_increment, key_decrement, use_mouse_buttons=False, key_to_hold=None, step=1, min_value=0, max_value=1000):
+        self.name = name
+        self.value = initial_value
+
+        self.key_increment = key_increment
+        self.key_decrement = key_decrement
+        self.key_to_hold = key_to_hold
+        self.holding_key = False
+
+        self.use_mouse_buttons = use_mouse_buttons
+
+        self.step = step
+        self.min_value = min_value
+        self.max_value = max_value
+
+        FastSetting.fast_settings.append(self)
+
+    def increase(self):
+        self.value += self.step
+        if self.value > self.max_value:
+            self.value = self.max_value
+
+    def decrease(self):
+        self.value -= self.step
+        if self.value < self.min_value:
+            self.value = self.min_value
+
+    def handle_input(self, event):
+        if not self.use_mouse_buttons:
+            if event.type == pygame.KEYDOWN:
+                if event.key == self.key_to_hold:
+                    self.holding_key = True
+
+                if event.key == self.key_increment:
+                    if self.key_to_hold is None or self.holding_key:
+                        self.increase()
+                if event.key == self.key_decrement:
+                    if self.key_to_hold is None or self.holding_key:
+                        self.decrease()
+
+            if event.type == pygame.KEYUP:
+                if event.key == self.key_to_hold:
+                    self.holding_key = False
+
+        else:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == self.key_increment:   # scroll up
+                    if self.key_to_hold is None or self.holding_key:
+                        self.increase()
+                if event.button == self.key_decrement:   # scroll down
+                    if self.key_to_hold is None or self.holding_key:
+                        self.decrease()
+
+    def get_value(self):
+        return self.value
+
+log_base_setting = FastSetting('Logarithmic base', 1.0, pygame.K_UP, pygame.K_DOWN, False, pygame.K_LCTRL, step=0.1, min_value=0.1, max_value=10)
+
+
+
 class SoundBar:
+    outline_thickness = 3
+
+    def log_inside_bars(bars, proportion=0.4):
+        num_logs = int(len(bars) * proportion)
+        starting_index = (len(bars) - num_logs) // 2
+        for i in range(num_logs):
+            bar = bars[starting_index + i]
+            bar.use_log_scale = True
+
     def __init__(self, x, y, width, base_height):
+        self.idx = 0
         self.x = x
         self.y = 0
         self.base_y = y
@@ -157,10 +238,20 @@ class SoundBar:
 
         self.current_amp = 0
 
+        self.use_log_scale = False
+
+        
+
     
-    def get_target_height(self):
+    def get_target_height2(self):
         #pitches = values_list
         return np.clip(self.base_height + int(self.current_amp) * 0.1, 0, screen_height - 20)
+    
+    def get_target_height(self):
+        if self.use_log_scale:
+            return np.clip(self.base_height + np.log10(self.current_amp + 1) * 20 - subtractor, 0, screen_height - 20)
+        else:
+            return self.get_target_height2()
 
     def change_height(self, multiplier=0.1):
         if self.height != self.target_height:
@@ -196,14 +287,16 @@ class SoundBar:
 
     def draw_outline(self, thickness=3, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
         thickness = max(- int(NUM_BARS / 10) + 4, 1)
+        SoundBar.outline_thickness = thickness
+        # print(SoundBar.outline_thickness)
         rect = pygame.Rect(self.x - thickness, self.optical_y - thickness, self.width + thickness * 2, self.optical_height + thickness * 2)
         pygame.draw.rect(screen, (255, 255, 255), rect)
         for i in range(steps):
             rect2 = pygame.Rect(
                 self.x - thickness + i * (thickness / steps),
-                self.y - thickness + i * (thickness / steps),
+                self.optical_y + i * (thickness / steps),
                 self.width + (thickness * 2) - i * (thickness * 2 / steps),
-                self.height + (thickness * 2) - i * (thickness * 2 / steps)
+                self.optical_height + (thickness * 2) - i * (thickness * 2 / steps)
             )
             color = (
                 start_color[0] + (end_color[0] - start_color[0]) * i / steps,
@@ -216,6 +309,9 @@ class SoundBar:
         self.draw_outline()
         self.draw()
         self.draw_fade(size=np.clip(self.current_speed * 4 / self.height * 100, 20, 100))
+
+
+
 
 
 import random
@@ -247,6 +343,8 @@ def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40,
         bar.color = get_random_color() if random_colors else lerp_color(start_color, end_color, i / (n - 1))
 
         bars.append(bar)
+
+        # SoundBar.log_inside_bars(bars)
 
     return bars
 
@@ -313,6 +411,7 @@ do_once2 = True
 running = True
 while running:
     for event in pygame.event.get():
+        FastSetting.update_all(event)
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
@@ -322,6 +421,9 @@ while running:
                 pressing_shift = True
             if event.key == pygame.K_LCTRL:
                 pressing_control = True
+            if event.key == pygame.K_l:
+                for bar in bars:
+                    bar.use_log_scale = not bar.use_log_scale
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LSHIFT:
@@ -357,6 +459,11 @@ while running:
                             bar.speed -= 0.1
                 else:
                     BAR_SIZE_MULTIPLIER -= 0.1
+
+
+        
+    # print(f'Log base: {log_base_setting.get_value():.2f} | Number of bars: {NUM_BARS} | Bar size multiplier: {BAR_SIZE_MULTIPLIER:.2f} | holding lcontrol: {log_base_setting.holding_key} | Bar speed: {bars[0].speed:.2f}')
+    FastSetting.print_info()
 
 
     if not pressing_shift and do_once2:
