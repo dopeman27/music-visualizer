@@ -142,10 +142,17 @@ class FastSetting:
             setting.handle_input(event)
 
     def print_info():
+        string = ''
         for setting in FastSetting.fast_settings:
-            print(f'{setting.name}: {setting.value}')
+            string += f'{setting.name}: {setting.value}\n'
+        print(string)
+        return string
 
-    def __init__(self, name, initial_value, key_increment, key_decrement, use_mouse_buttons=False, key_to_hold=None, step=1, min_value=0, max_value=1000):
+    def save_all():
+        with open('fast_settings.txt', 'w') as f:
+            f.write(FastSetting.print_info())
+
+    def __init__(self, name, initial_value, key_increment, key_decrement, use_mouse_buttons=False, key_to_hold=None, step=1, min_value=0, max_value=1000, custom_increase_function=None, custom_decrease_function=None):
         self.name = name
         self.value = initial_value
 
@@ -160,14 +167,23 @@ class FastSetting:
         self.min_value = min_value
         self.max_value = max_value
 
+        self.custom_increase_function = custom_increase_function
+        self.custom_decrease_function = custom_decrease_function
+
         FastSetting.fast_settings.append(self)
 
     def increase(self):
+        if self.custom_increase_function is not None:
+            self.custom_increase_function()
+            return
         self.value += self.step
         if self.value > self.max_value:
             self.value = self.max_value
 
     def decrease(self):
+        if self.custom_decrease_function is not None:
+            self.custom_decrease_function()
+            return
         self.value -= self.step
         if self.value < self.min_value:
             self.value = self.min_value
@@ -191,18 +207,22 @@ class FastSetting:
 
         else:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == self.key_increment:   # scroll up
+                if event.button == self.key_increment:
                     if self.key_to_hold is None or self.holding_key:
                         self.increase()
-                if event.button == self.key_decrement:   # scroll down
+                if event.button == self.key_decrement:
                     if self.key_to_hold is None or self.holding_key:
                         self.decrease()
 
     def get_value(self):
         return self.value
 
-log_base_setting = FastSetting('Logarithmic base', 1.0, pygame.K_UP, pygame.K_DOWN, False, pygame.K_LCTRL, step=0.1, min_value=0.1, max_value=10)
 
+num_bars_setting = FastSetting('Number of bars', NUM_BARS, 4, 5, True, pygame.K_LSHIFT, step=1, min_value=2, max_value=128)
+BAR_SIZE_MULTIPLIER_setting = FastSetting('Bar size multiplier', BAR_SIZE_MULTIPLIER, 4, 5, True, None, step=0.1, min_value=0.1, max_value=10)
+
+log_base_setting = FastSetting('Logarithmic base', 6.0, pygame.K_UP, pygame.K_DOWN, False, pygame.K_LCTRL, step=0.1, min_value=0.1, max_value=10)
+subtractor_setting = FastSetting('Logarithmic subtractor', 20, pygame.K_RIGHT, pygame.K_LEFT, False, pygame.K_LCTRL, step=5, min_value=0, max_value=1000)
 
 
 class SoundBar:
@@ -249,7 +269,7 @@ class SoundBar:
     
     def get_target_height(self):
         if self.use_log_scale:
-            return np.clip(self.base_height + np.log10(self.current_amp + 1) * 20 - subtractor, 0, screen_height - 20)
+            return np.clip(self.base_height + np.emath.logn(log_base_setting.get_value(), self.current_amp + 1) * 20 - subtractor_setting.get_value(), 0, screen_height - 20)
         else:
             return self.get_target_height2()
 
@@ -356,10 +376,14 @@ def tint_bars(bars, start_color, end_color, offset=0):
 
 base_height = 10
 
-
-
-
 bars = create_ranged_audio_bars(NUM_BARS)
+
+
+def switch_log_scale():
+    for bar in bars: 
+        bar.use_log_scale = not bar.use_log_scale
+
+logarithmic_view_setting = FastSetting('Logarithmic view', 0, pygame.K_l, None, False, None, custom_increase_function=switch_log_scale, custom_decrease_function=switch_log_scale)
 
 clock = pygame.time.Clock()
 
@@ -421,9 +445,9 @@ while running:
                 pressing_shift = True
             if event.key == pygame.K_LCTRL:
                 pressing_control = True
-            if event.key == pygame.K_l:
-                for bar in bars:
-                    bar.use_log_scale = not bar.use_log_scale
+            # if event.key == pygame.K_l:
+            #     for bar in bars:
+            #         bar.use_log_scale = not bar.use_log_scale
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LSHIFT:
