@@ -305,6 +305,7 @@ tinted_bar_index = 0
 current_frame_beat = 0
 
 pressing_shift = False
+pressing_control = False
 
 
 # ----------------------- MAIN LOOP ----------------------------------
@@ -319,10 +320,14 @@ while running:
                 was_enter_pressed = True
             if event.key == pygame.K_LSHIFT:
                 pressing_shift = True
+            if event.key == pygame.K_LCTRL:
+                pressing_control = True
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_LSHIFT:
                 pressing_shift = False
+            if event.key == pygame.K_LCTRL:
+                pressing_control = False
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 4:
@@ -330,6 +335,11 @@ while running:
                     if NUM_BARS < start_num_bars:
                         NUM_BARS += 1
                         bars = create_ranged_audio_bars(NUM_BARS)
+
+                if pressing_control:
+                    for bar in bars:
+                        bar.speed += 0.1
+                
                 else:
                     BAR_SIZE_MULTIPLIER += 0.1
             if event.button == 5:
@@ -337,6 +347,11 @@ while running:
                     if NUM_BARS > 2:
                         NUM_BARS -= 1
                         bars = create_ranged_audio_bars(NUM_BARS)
+
+                if pressing_control:
+                    for bar in bars:
+                        if bar.speed > 0.1:
+                            bar.speed -= 0.1
                 else:
                     BAR_SIZE_MULTIPLIER -= 0.1
 
