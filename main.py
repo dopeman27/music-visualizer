@@ -37,7 +37,12 @@ folder_path = 'audio_files/'
 
 audio_files = load_audio_files_from_folder(folder_path)
 
-
+def get_bpm_from_filename(filename='audio_files/bpm_list', audio_file_name=''):
+    for line in open(filename, 'r'):
+        if line.startswith(audio_file_name):
+            line = line[len(audio_file_name) + 1:]
+            return int(line.strip())
+    return 120
 
 # ----------- Wybór pliku audio ------------
 
@@ -46,21 +51,44 @@ choice = 0
 # audio_file = folder_path + audio_files[choice]
 # audio = AudioSegment.from_mp3(audio_file)
 
+custom_file = True
 
-import tkinter as tk
-from tkinter.filedialog import askopenfilename
-tk.Tk().withdraw() # part of the import if you are not using other tkinter functions
+if custom_file:
 
-fn = askopenfilename()
-print("user chose", fn)
+    import tkinter as tk
+    from tkinter.filedialog import askopenfilename
+    tk.Tk().withdraw() # part of the import if you are not using other tkinter functions
+
+    fn = askopenfilename()
+    print("user chose", fn)
+    fn2 = fn
+    cut_number = fn.count('/')
+    for _ in range(cut_number):
+        fn2 = fn2[fn2.index('/') + 1:]
+    audio_file = fn2
+    audio = AudioSegment.from_mp3(fn)
+    pygame.mixer.music.load(fn)
+    pygame.mixer.music.play()
+
+else:
+    fn = folder_path + audio_files[choice]
+    audio_file = fn
+    audio = AudioSegment.from_mp3(audio_file)
+
+    pygame.mixer.music.load(audio_file)
+    pygame.mixer.music.play()
 
 
-audio_file = fn
-audio = AudioSegment.from_mp3(audio_file)
-pygame.mixer.music.load(audio_file)
-pygame.mixer.music.play()
 
 samples = np.array(audio.get_array_of_samples())
+
+
+
+bpm = get_bpm_from_filename('audio_files/bpm_list', audio_files[choice])
+beat_duration_ms = 60000 / bpm
+
+fps = 60
+frames_per_beat = beat_duration_ms / (1000 / fps)
 
 
 # ------- Ustawienia samplowania
@@ -79,7 +107,7 @@ def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 25
+NUM_BARS = 24
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -95,7 +123,7 @@ print('done')
 #quit = True
 
 
-
+BAR_SIZE_MULTIPLIER = 1.1
 
 
 
@@ -141,22 +169,25 @@ class SoundBar:
         # self.y = self.lower_edge_y - self.height
         self.target_height = self.get_target_height()
         self.change_height()
+        self.optical_height = int(self.height * BAR_SIZE_MULTIPLIER)
+        self.optical_y = self.base_y - self.optical_height
         self.y = self.base_y - self.height
 
     def draw_fade(self, percent=20, size=0, use_percentage=True, steps=20):
+        
         if use_percentage:
-            size = int(self.height * percent / 100)
+            size = int(self.optical_height * percent / 100)
         part_height = int(size / steps)
         if part_height < 1:
             steps = size
             part_height = 1
         for i in range(steps):
-            rect = pygame.Rect(self.x, self.y + part_height * i, self.width, part_height)
+            rect = pygame.Rect(self.x, self.optical_y + part_height * i, self.width, part_height)
             fade_color = (max(self.color[0] * (i / steps), 0), max(self.color[1] * (i / steps), 0), max(self.color[2] * (i / steps), 0))
             pygame.draw.rect(screen, fade_color, rect)
 
     def draw(self):
-        rect = pygame.Rect(self.x, self.base_y - self.height, self.width, self.height)
+        rect = pygame.Rect(self.x, self.base_y - self.optical_height, self.width, self.optical_height)
         pygame.draw.rect(screen, self.color, rect)
 
     def draw_outline(self, thickness=3, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
@@ -211,7 +242,11 @@ def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40,
 
     return bars
 
-
+def tint_bars(bars, start_color, end_color, offset=0):
+    n = len(bars)
+    for i in range(n):
+        idx = (i + offset) % n
+        bars[idx].color = lerp_color(start_color, end_color, i / (n - 1))
 
 base_height = 10
 
@@ -256,7 +291,9 @@ time_per_sample = audio_duration / num_samples
 def get_current_sample_index(current_time, time_per_sample):
     return np.clip(int(current_time / time_per_sample), 0, len(all_amplitudes) - 1)
 
-
+frames_from_start = 0
+tinted_bar_index = 0
+current_frame_beat = 0
 
 # ----------------------- MAIN LOOP ----------------------------------
 
@@ -297,7 +334,17 @@ while running:
 
         #print(bars[1].current_amp)
 
-
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    # tint_bars(bars, (255, 200, 70), (0, 0, 255), offset=int(mouse_x / screen_width * NUM_BARS))
+    r_start = int((mouse_x / screen_width) * 255)
+    r_end = 255 - r_start
+    g_start = int((mouse_y / screen_height) * 255)
+    g_end = 255 - g_start
+    b_start = 100
+    b_end = 255 - b_start
+    start_color = (r_start, g_start, b_start)
+    end_color = (r_end, g_end, b_end)
+    tint_bars(bars, start_color, end_color, offset=tinted_bar_index)
 
     if was_enter_pressed:
         text_animation_counter += 1
@@ -307,16 +354,22 @@ while running:
 
     text_x = 10 + animation_function(text_animation_counter)
 
-    text_surface = font.render(f'Now playing: {audio_files[choice]}', True, (255, 255, 255))
+    text_surface = font.render(f'Now playing: {audio_file}', True, (255, 255, 255))
     screen.blit(text_surface, (text_x, 10))
     
 
 
     # ----------------------------
     
-    current_frame += 1
-    if current_frame > fps:
-        current_frame = 0
+    frames_from_start += 1
+    current_frame = frames_from_start % fps
+    current_frame_beat += 1
+    if current_frame_beat > frames_per_beat:
+        current_frame_beat = 0
+        tinted_bar_index = (tinted_bar_index + 1) % NUM_BARS
+    # current_frame += 1
+    # if current_frame > fps:
+    #     current_frame = 0
 
     sample_counter += 1
     if sample_counter > sampling_frequency:
@@ -324,6 +377,8 @@ while running:
 
     log_freq = 20 # every how many frames to log
     fraction_of_second = np.floor(current_frame / log_freq) / (fps / log_freq)
+
+    print(bars[0].height, bars[0].optical_height, bars[0].y, bars[0].optical_y)
 
     pygame.display.flip()
     clock.tick(60)
