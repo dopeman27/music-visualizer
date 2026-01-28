@@ -306,7 +306,7 @@ current_frame_beat = 0
 
 pressing_shift = False
 pressing_control = False
-
+do_once2 = True
 
 # ----------------------- MAIN LOOP ----------------------------------
 
@@ -332,6 +332,7 @@ while running:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 4:
                 if pressing_shift:
+                    do_once2 = True
                     if NUM_BARS < start_num_bars:
                         NUM_BARS += 1
                         bars = create_ranged_audio_bars(NUM_BARS)
@@ -344,9 +345,11 @@ while running:
                     BAR_SIZE_MULTIPLIER += 0.1
             if event.button == 5:
                 if pressing_shift:
+                    do_once2 = True
                     if NUM_BARS > 2:
                         NUM_BARS -= 1
                         bars = create_ranged_audio_bars(NUM_BARS)
+                        
 
                 if pressing_control:
                     for bar in bars:
@@ -354,6 +357,11 @@ while running:
                             bar.speed -= 0.1
                 else:
                     BAR_SIZE_MULTIPLIER -= 0.1
+
+
+    if not pressing_shift and do_once2:
+        do_once2 = False
+        all_amplitudes = get_all_amplitudes(stft_result, freq_ranges=calculate_frequency_ranges(NUM_BARS))
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
@@ -376,7 +384,10 @@ while running:
 
     #amp_sum_single_list = big_sum[current_sample_index]
     for i in range(NUM_BARS):
-        bars[i].current_amp = all_amplitudes[current_sample_index][i] * 0.001
+        try:
+            bars[i].current_amp = all_amplitudes[current_sample_index][i] * 0.001
+        except IndexError:
+            bars[i].current_amp = 0
 
         bars[i].update()
         bars[i].draw_all()
@@ -427,7 +438,7 @@ while running:
     log_freq = 20 # every how many frames to log
     fraction_of_second = np.floor(current_frame / log_freq) / (fps / log_freq)
 
-    print(bars[0].height, bars[0].optical_height, bars[0].y, bars[0].optical_y)
+    # print(bars[0].height, bars[0].optical_height, bars[0].y, bars[0].optical_y)
 
     pygame.display.flip()
     clock.tick(60)
