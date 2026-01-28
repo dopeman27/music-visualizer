@@ -112,6 +112,8 @@ NUM_BARS = 64
 start_num_bars = NUM_BARS
 
 
+
+
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
 
 freq_ranges = calculate_frequency_ranges(NUM_BARS)
@@ -193,7 +195,8 @@ class SoundBar:
         pygame.draw.rect(screen, self.color, rect)
 
     def draw_outline(self, thickness=3, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
-        rect = pygame.Rect(self.x - thickness, self.y - thickness, self.width + thickness * 2, self.height + thickness * 2)
+        thickness = max(- int(NUM_BARS / 10) + 4, 1)
+        rect = pygame.Rect(self.x - thickness, self.optical_y - thickness, self.width + thickness * 2, self.optical_height + thickness * 2)
         pygame.draw.rect(screen, (255, 255, 255), rect)
         for i in range(steps):
             rect2 = pygame.Rect(
@@ -210,7 +213,7 @@ class SoundBar:
             pygame.draw.rect(screen, color, rect2, thickness)
 
     def draw_all(self):
-        # self.draw_outline()
+        self.draw_outline()
         self.draw()
         self.draw_fade(size=np.clip(self.current_speed * 4 / self.height * 100, 20, 100))
 
@@ -227,7 +230,10 @@ def lerp_color(color1, color2, t):
         int(color1[2] + (color2[2] - color1[2]) * t)
     )
 
+NUM_BARS = 10
+
 def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40, base_height=10, space=int(250 / NUM_BARS), random_colors=False, start_color=(255, 0, 0), end_color=(0, 0, 255)):
+    space = int(250 / n)
     bars = []
     freq_ranges = calculate_frequency_ranges(n)
 
@@ -251,6 +257,7 @@ def tint_bars(bars, start_color, end_color, offset=0):
         bars[idx].color = lerp_color(start_color, end_color, i / (n - 1))
 
 base_height = 10
+
 
 
 
@@ -298,6 +305,7 @@ tinted_bar_index = 0
 current_frame_beat = 0
 
 pressing_shift = False
+
 
 # ----------------------- MAIN LOOP ----------------------------------
 
