@@ -80,7 +80,7 @@ def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 25
+NUM_BARS = 16
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -106,7 +106,8 @@ print('done')
 class SoundBar:
     def __init__(self, x, y, width, base_height):
         self.x = x
-        self.y = y
+        self.y = 0
+        self.base_y = y
         self.width = width
         self.lower_edge_y = y + base_height
         
@@ -118,7 +119,7 @@ class SoundBar:
         self.value = 100                    # procent wypelnienia
         self.frequency_range = (20, 20000)  # odbierane czestotliwosci
 
-        self.speed = 2.5
+        self.speed = 2
 
         self.color = (100, 200, 60)
 
@@ -136,12 +137,43 @@ class SoundBar:
         return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
 
     def update(self):
+        # self.y = self.lower_edge_y - self.height
         self.target_height = self.get_target_height()
         self.change_height()
+        self.y = self.base_y - self.height
+
+    def draw_fade(self, percent=20, size=0, use_percentage=True):
+        if use_percentage:
+            size = int(self.height * percent / 100)
+        rect = pygame.Rect(self.x, self.base_y + size, self.width, size)
+        fade_color = (max(self.color[0] - 100, 0), max(self.color[1] - 100, 0), max(self.color[2] - 100, 0))
+        pygame.draw.rect(screen, fade_color, rect)
 
     def draw(self):
-        rect = pygame.Rect(self.x, self.y - self.height, self.width, self.height)
+        rect = pygame.Rect(self.x, self.base_y - self.height, self.width, self.height)
         pygame.draw.rect(screen, self.color, rect)
+
+    def draw_outline(self, thickness=5, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
+        rect = pygame.Rect(self.x - thickness, self.y - thickness, self.width + thickness * 2, self.height + thickness * 2)
+        pygame.draw.rect(screen, (255, 255, 255), rect)
+        for i in range(steps):
+            rect2 = pygame.Rect(
+                self.x - thickness + i * (thickness / steps),
+                self.y - thickness + i * (thickness / steps),
+                self.width + (thickness * 2) - i * (thickness * 2 / steps),
+                self.height + (thickness * 2) - i * (thickness * 2 / steps)
+            )
+            color = (
+                start_color[0] + (end_color[0] - start_color[0]) * i / steps,
+                start_color[1] + (end_color[1] - start_color[1]) * i / steps,
+                start_color[2] + (end_color[2] - start_color[2]) * i / steps
+            )
+            pygame.draw.rect(screen, color, rect2, thickness)
+
+    def draw_all(self):
+        self.draw_outline()
+        self.draw()
+        self.draw_fade(percent=20)
 
 
 import random
@@ -247,7 +279,7 @@ while running:
         bars[i].current_amp = all_amplitudes[current_sample_index][i] * 0.001
 
         bars[i].update()
-        bars[i].draw()
+        bars[i].draw_all()
 
         #print(bars[1].current_amp)
 
