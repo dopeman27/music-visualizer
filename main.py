@@ -57,7 +57,6 @@ print("user chose", fn)
 
 audio_file = fn
 audio = AudioSegment.from_mp3(audio_file)
-
 pygame.mixer.music.load(audio_file)
 pygame.mixer.music.play()
 
@@ -120,6 +119,7 @@ class SoundBar:
         self.frequency_range = (20, 20000)  # odbierane czestotliwosci
 
         self.speed = 2
+        self.current_speed = 0
 
         self.color = (100, 200, 60)
 
@@ -133,7 +133,8 @@ class SoundBar:
     def change_height(self, multiplier=0.1):
         if self.height != self.target_height:
             diff = self.target_height - self.height
-            self.height += diff * multiplier * self.speed
+            self.current_speed = diff * multiplier * self.speed
+            self.height += self.current_speed
         return np.clip(np.abs(self.height), 1, 1000) * np.sign(self.height)
 
     def update(self):
@@ -142,11 +143,15 @@ class SoundBar:
         self.change_height()
         self.y = self.base_y - self.height
 
-    def draw_fade(self, percent=20, size=0, use_percentage=True, steps=10):
+    def draw_fade(self, percent=20, size=0, use_percentage=True, steps=20):
         if use_percentage:
             size = int(self.height * percent / 100)
+        part_height = int(size / steps)
+        if part_height < 1:
+            steps = size
+            part_height = 1
         for i in range(steps):
-            rect = pygame.Rect(self.x, self.y + size * (i / steps), self.width, size)
+            rect = pygame.Rect(self.x, self.y + part_height * i, self.width, part_height)
             fade_color = (max(self.color[0] * (i / steps), 0), max(self.color[1] * (i / steps), 0), max(self.color[2] * (i / steps), 0))
             pygame.draw.rect(screen, fade_color, rect)
 
@@ -174,7 +179,7 @@ class SoundBar:
     def draw_all(self):
         # self.draw_outline()
         self.draw()
-        self.draw_fade(percent=20)
+        self.draw_fade(size=np.clip(self.current_speed * 4 / self.height * 100, 20, 100))
 
 
 import random
@@ -182,7 +187,14 @@ import random
 def get_random_color():
     return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
-def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40, base_height=10, space=int(250 / NUM_BARS)):
+def lerp_color(color1, color2, t):
+    return (
+        int(color1[0] + (color2[0] - color1[0]) * t),
+        int(color1[1] + (color2[1] - color1[1]) * t),
+        int(color1[2] + (color2[2] - color1[2]) * t)
+    )
+
+def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40, base_height=10, space=int(250 / NUM_BARS), random_colors=False, start_color=(255, 0, 0), end_color=(0, 0, 255)):
     bars = []
     freq_ranges = calculate_frequency_ranges(n)
 
@@ -193,11 +205,12 @@ def create_ranged_audio_bars(n, start_x=5, lower_edge_y=screen_height, width=40,
 
         #bar.width = screen_width / n - space
         bar.frequency_range = (freq_ranges[i], freq_ranges[i + 1])
-        bar.color = get_random_color()
+        bar.color = get_random_color() if random_colors else lerp_color(start_color, end_color, i / (n - 1))
 
         bars.append(bar)
 
     return bars
+
 
 
 base_height = 10
