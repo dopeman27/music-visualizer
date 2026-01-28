@@ -107,7 +107,9 @@ def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 24
+NUM_BARS = 64
+
+start_num_bars = NUM_BARS
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -123,7 +125,7 @@ print('done')
 #quit = True
 
 
-BAR_SIZE_MULTIPLIER = 1.1
+BAR_SIZE_MULTIPLIER = 1.2
 
 
 
@@ -295,6 +297,8 @@ frames_from_start = 0
 tinted_bar_index = 0
 current_frame_beat = 0
 
+pressing_shift = False
+
 # ----------------------- MAIN LOOP ----------------------------------
 
 running = True
@@ -305,6 +309,28 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
                 was_enter_pressed = True
+            if event.key == pygame.K_LSHIFT:
+                pressing_shift = True
+
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_LSHIFT:
+                pressing_shift = False
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:
+                if pressing_shift:
+                    if NUM_BARS < start_num_bars:
+                        NUM_BARS += 1
+                        bars = create_ranged_audio_bars(NUM_BARS)
+                else:
+                    BAR_SIZE_MULTIPLIER += 0.1
+            if event.button == 5:
+                if pressing_shift:
+                    if NUM_BARS > 2:
+                        NUM_BARS -= 1
+                        bars = create_ranged_audio_bars(NUM_BARS)
+                else:
+                    BAR_SIZE_MULTIPLIER -= 0.1
 
     elapsed_time_ms = pygame.mixer.music.get_pos()
 
