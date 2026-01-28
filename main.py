@@ -80,7 +80,7 @@ def did_variable_change(old_value, new_value):
     return old_value != new_value
 
 
-NUM_BARS = 16
+NUM_BARS = 25
 
 
 stft_result = stft(samples, window_size, hop_size, audio.frame_rate)
@@ -142,18 +142,19 @@ class SoundBar:
         self.change_height()
         self.y = self.base_y - self.height
 
-    def draw_fade(self, percent=20, size=0, use_percentage=True):
+    def draw_fade(self, percent=20, size=0, use_percentage=True, steps=10):
         if use_percentage:
             size = int(self.height * percent / 100)
-        rect = pygame.Rect(self.x, self.base_y + size, self.width, size)
-        fade_color = (max(self.color[0] - 100, 0), max(self.color[1] - 100, 0), max(self.color[2] - 100, 0))
-        pygame.draw.rect(screen, fade_color, rect)
+        for i in range(steps):
+            rect = pygame.Rect(self.x, self.y + size * (i / steps), self.width, size)
+            fade_color = (max(self.color[0] * (i / steps), 0), max(self.color[1] * (i / steps), 0), max(self.color[2] * (i / steps), 0))
+            pygame.draw.rect(screen, fade_color, rect)
 
     def draw(self):
         rect = pygame.Rect(self.x, self.base_y - self.height, self.width, self.height)
         pygame.draw.rect(screen, self.color, rect)
 
-    def draw_outline(self, thickness=5, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
+    def draw_outline(self, thickness=3, start_color=(255, 255, 255), end_color=(0, 0, 0), steps=10):
         rect = pygame.Rect(self.x - thickness, self.y - thickness, self.width + thickness * 2, self.height + thickness * 2)
         pygame.draw.rect(screen, (255, 255, 255), rect)
         for i in range(steps):
@@ -171,7 +172,7 @@ class SoundBar:
             pygame.draw.rect(screen, color, rect2, thickness)
 
     def draw_all(self):
-        self.draw_outline()
+        # self.draw_outline()
         self.draw()
         self.draw_fade(percent=20)
 
